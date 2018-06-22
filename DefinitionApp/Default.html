@@ -1,0 +1,83 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Definition App</title>
+    <link href="Content/bootstrap.min.css" rel="stylesheet" />
+    <script src="Scripts/jquery-3.0.0.min.js"></script>
+</head>
+<body>
+
+    <article class="container">
+        <div class="definition-app" style="margin-top:5%;">
+            <h1>What is your question?</h1>
+            <form>
+                <div class="form-group">
+                    <input type="text" class="form-control" id="utterance" placeholder='Eg.,"define software development process"' value="define software development process">
+                </div>
+                <button type="submit" class="btn btn-primary">Go</button>
+            </form>
+            <br>
+            <div id="definition" class="card card-body bg-light">Definition will appear here.</div>
+        </div>
+    </article>
+
+
+    <script>
+        $('form').submit(function (e)
+        {
+            e.preventDefault(); // stop the default form submission behavior
+            var utterance = $('#utterance').val(); // text entered by user in the textbox
+            console.log(utterance);
+
+            // Send the utterance to LUIS
+            $.get("https://eastus2.api.cognitive.microsoft.com/luis/v2.0/apps/<App id>?subscription-key=<key id>&verbose=true&timezoneOffset=0&q=" + utterance,
+                function (responseLuis)
+                {
+                    if (responseLuis.intents.length > 0)
+                    { // at least 1 intent was detected
+                        if (responseLuis.topScoringIntent.intent === "GetDefinition")
+                        { // the top scoring intent is "GetDefinition"
+                            if (responseLuis.entities.length > 0)
+                            { // at least 1 entity was detected
+                                var phrase = responseLuis.entities[0].entity;
+                                // ideally, we should check if entity type is "Phrase"
+                                // Get the definition from Wikipedia
+                                console.log(phrase);
+                                var wikipediaData = {
+                                    "format": "json",
+                                    "action": "query",
+                                    "prop": "extracts",
+                                    "exintro": "",
+                                    "explaintext": "",
+                                    "titles": phrase
+                                };
+                                $.get("https://en.wikipedia.org/w/api.php", wikipediaData, function (responseWikipedia)
+                                {
+                                    var pages = responseWikipedia.query.pages;
+                                    var summaryFirstLine = pages[Object.keys(pages)[0]].extract.split(". ")[0];
+                                    $('#definition').html("<b>According to Wikipedia,</b > <br>" + summaryFirstLine);
+                                });
+                            }
+                            else
+                            { // no entity was detected
+                                $('#definition').text("Sorry, I could not detect the phrase.");
+                            }
+                        }
+                        else if (responseLuis.topScoringIntent.intent === "None")
+                        {
+                            // the top scoring intent is "None"
+                            $('#definition').text("Did you ask the right question? ");
+                        }
+                    }
+                    else
+                    { // no intent was detected
+                        $('#definition').text("Sorry, I did not understand.");
+                    }
+                });
+        });
+
+    </script>
+</body>
+</html>
